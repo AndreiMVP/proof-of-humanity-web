@@ -1,4 +1,5 @@
 import { ZERO_ADDRESS } from "config/contracts";
+
 import EthereumAccount from "./ethereum-account";
 
 const metadata = {

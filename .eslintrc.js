@@ -161,7 +161,7 @@ module.exports = {
         },
       },
     ],
-    "import/newline-after-import": "error",
+    // "import/newline-after-import": "error",
     "import/no-anonymous-default-export": [
       "error",
       { allowCallExpression: false },
