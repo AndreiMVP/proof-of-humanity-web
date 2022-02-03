@@ -1,5 +1,5 @@
+import { ZERO_ADDRESS } from "config/contracts";
 import EthereumAccount from "./ethereum-account";
-import { zeroAddress } from "./parsing";
 
 const metadata = {
   title: "Web3/EthereumAccount",
@@ -8,7 +8,7 @@ const metadata = {
     address: {
       type: "string",
       description: "The account's address.",
-      defaultValue: zeroAddress,
+      defaultValue: ZERO_ADDRESS,
       table: {
         type: {
           summary: "string",
