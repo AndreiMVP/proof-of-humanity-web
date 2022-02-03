@@ -2,11 +2,11 @@
   command = "npm run build:mainnet"
 
 [context.deploy-preview.environment]
-  NEXT_PUBLIC_INFURA_API_KEY=0c1428c30d17449bae84ddfe9b82c16d
-  NEXT_PUBLIC_IPFS_GATEWAY=https://ipfs.kleros.io
-  NEXT_PUBLIC_VOUCH_DB_URL=https://vouches.proofofhumanity.id
+  NEXT_PUBLIC_INFURA_API_KEY="0c1428c30d17449bae84ddfe9b82c16d"
+  NEXT_PUBLIC_IPFS_GATEWAY="https://ipfs.kleros.io"
+  NEXT_PUBLIC_VOUCH_DB_URL="https://vouches.proofofhumanity.id"
 
 [context.production.environment]
-  NEXT_PUBLIC_INFURA_API_KEY=0c1428c30d17449bae84ddfe9b82c16d
-  NEXT_PUBLIC_IPFS_GATEWAY=https://ipfs.kleros.io
-  NEXT_PUBLIC_VOUCH_DB_URL=https://vouches.proofofhumanity.id
+  NEXT_PUBLIC_INFURA_API_KEY="0c1428c30d17449bae84ddfe9b82c16d"
+  NEXT_PUBLIC_IPFS_GATEWAY="https://ipfs.kleros.io"
+  NEXT_PUBLIC_VOUCH_DB_URL="https://vouches.proofofhumanity.id"
