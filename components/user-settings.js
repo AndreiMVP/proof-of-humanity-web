@@ -42,18 +42,17 @@ export default function UserSettings({
 
   const [userSettings] = useUserSettings(
     useMemo(
-      () => ({
-        ...Object.keys(settings).reduce((acc, setting) => {
-          acc[setting] = true;
-          return acc;
-        }, {}),
-        email: true,
-      }),
+      () =>
+        Object.keys(settings).reduce(
+          (acc, setting) => ({ ...acc, [setting]: true }),
+          { email: true }
+        ),
       [settings]
     )
   );
   const { send } = usePatchUserSettings();
   const [message, setMessage] = useState();
+
   return (
     <Form
       enableReinitialize
@@ -62,13 +61,15 @@ export default function UserSettings({
         [parseSettings, userSettings]
       )}
       createValidationSchema={useCallback(
-        ({ boolean, string }) => ({
-          ...Object.keys(settings).reduce((acc, setting) => {
-            acc[setting] = boolean();
-            return acc;
-          }, {}),
-          email: string().email("Must be a valid email.").required("Required"),
-        }),
+        ({ boolean, string }) =>
+          Object.keys(settings).reduce(
+            (acc, setting) => ({ ...acc, [setting]: boolean() }),
+            {
+              email: string()
+                .email("Must be a valid email.")
+                .required("Required"),
+            }
+          ),
         [settings]
       )}
       onSubmit={async (_settings) => {

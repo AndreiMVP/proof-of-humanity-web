@@ -3,11 +3,12 @@ import { Box } from "theme-ui";
 
 import Identicon from "./identicon";
 import { NextETHLink } from "./next-router";
-import { zeroAddress } from "./parsing";
 import Text from "./text";
 
+import { ZERO_ADDRESS } from "config/contracts";
+
 export default function EthereumAccount({
-  address = zeroAddress,
+  address = ZERO_ADDRESS,
   diameter = 24,
   sx,
 }) {

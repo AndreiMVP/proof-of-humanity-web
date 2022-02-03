@@ -57,10 +57,9 @@ export default function Deadlines({ submission, contract, status }) {
     (Number(submissionTime) + (submissionDuration - renewalTime)) * 1000;
   const expirationTimestamp =
     (Number(submissionTime) + Number(submissionDuration)) * 1000;
-  const [accounts] = useWeb3("eth", "getAccounts");
+  const { account } = useWeb3();
 
-  const isSelf =
-    accounts?.[0] && accounts[0].toLowerCase() === id.toLowerCase();
+  const isSelf = account && account.toLowerCase() === id.toLowerCase();
 
   return (
     <>
@@ -121,7 +120,7 @@ export default function Deadlines({ submission, contract, status }) {
               ) : Date.now() > renewalTimestamp ? (
                 <NextLink
                   href="/profile/[id]?reapply=true"
-                  as={`/profile/${accounts?.[0]}`}
+                  as={`/profile/${account}`}
                 >
                   <Button
                     sx={{
@@ -148,7 +147,7 @@ export default function Deadlines({ submission, contract, status }) {
               isSelf && (
                 <NextLink
                   href="/profile/[id]?reapply=true"
-                  as={`/profile/${accounts?.[0]}`}
+                  as={`/profile/${account}`}
                 >
                   <Button
                     sx={{
@@ -166,10 +165,7 @@ export default function Deadlines({ submission, contract, status }) {
       ) : status === submissionStatusEnum.Removed &&
         submissionTime === null &&
         isSelf ? (
-        <NextLink
-          href="/profile/[id]?reapply=true"
-          as={`/profile/${accounts?.[0]}`}
-        >
+        <NextLink href="/profile/[id]?reapply=true" as={`/profile/${account}`}>
           <Button
             sx={{
               width: "100%",

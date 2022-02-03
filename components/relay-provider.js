@@ -13,6 +13,8 @@ import {
 import { Environment, RecordSource, Store } from "relay-runtime";
 import { Flex } from "theme-ui";
 
+import { SUBGRAPH_ENDPOINT } from "config/chains";
+
 const createEnvironment = (endpoint) => {
   const environment = new Environment({
     network: new RelayNetworkLayer([
@@ -27,23 +29,25 @@ const createEnvironment = (endpoint) => {
   environment.endpoint = endpoint;
   return environment;
 };
+
 const Context = createContext();
+
 export default function RelayProvider({
-  endpoint,
   queries,
   connectToRouteChange,
   children,
+  chainId,
 }) {
   const [prefetch] = useState(loadQuery);
   const [initialized, setInitialized] = useState(false);
-
   const [environment, setEnvironment] = useState(() =>
-    createEnvironment(endpoint)
+    createEnvironment(SUBGRAPH_ENDPOINT[chainId])
   );
+
   useEffect(() => {
-    if (endpoint !== environment.endpoint)
-      setEnvironment(createEnvironment(endpoint));
-  }, [endpoint, environment]);
+    if (SUBGRAPH_ENDPOINT[chainId] !== environment.endpoint)
+      setEnvironment(createEnvironment(SUBGRAPH_ENDPOINT[chainId]));
+  }, [chainId, environment]);
 
   useEffect(() => {
     if (environment) {
@@ -63,21 +67,25 @@ export default function RelayProvider({
       setInitialized(true);
     }
   }, [environment, connectToRouteChange, queries, prefetch]);
-  return initialized ? (
+
+  if (!initialized)
+    return (
+      <Flex
+        sx={{
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          width: "100vw",
+        }}
+      >
+        Connecting to The Graph node...
+      </Flex>
+    );
+
+  return (
     <RelayEnvironmentProvider environment={environment}>
       <Context.Provider value={prefetch}>{children}</Context.Provider>
     </RelayEnvironmentProvider>
-  ) : (
-    <Flex
-      sx={{
-        alignItems: "center",
-        height: "100vh",
-        justifyContent: "center",
-        width: "100vw",
-      }}
-    >
-      Connecting to The Graph node...
-    </Flex>
   );
 }
 

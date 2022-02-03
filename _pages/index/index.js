@@ -1,10 +1,17 @@
-import { Grid, Pagination, useContract, useQuery } from "@kleros/components";
+import {
+  Grid,
+  Pagination,
+  useContractCall,
+  useQuery,
+} from "@kleros/components";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { graphql } from "relay-hooks";
 
 import SubmissionCard from "./submission-card";
 import SubmissionFilters from "./submission-filters";
+
+import { PROOF_OF_HUMANITY } from "config/contracts";
 
 const pageSize = 12;
 
@@ -59,14 +66,16 @@ export default function Index() {
         .concat(byAddressNormalized)
     : props?.submissions?.slice(0, pageSize);
 
-  const [submissionDuration] = useContract(
-    "proofOfHumanity",
+  const [submissionDuration] = useContractCall(
+    PROOF_OF_HUMANITY,
     "submissionDuration"
   );
-  const [defaultSubmissionCounter] = useContract(
-    "proofOfHumanity",
+
+  const [defaultSubmissionCounter] = useContractCall(
+    PROOF_OF_HUMANITY,
     "submissionCounter"
   );
+
   const submissionCounter = getSubmissionCounter(
     defaultSubmissionCounter,
     router.query?.status,

@@ -3,14 +3,13 @@ import {
   Button,
   Popup,
   Text,
-  useContract,
+  useContractCall,
   useWeb3,
-  useWeb3Context,
 } from "@kleros/components";
 import { Warning } from "@kleros/icons";
 import { useCallback, useMemo, useState } from "react";
 
-import { address as pohAddress } from "subgraph/config";
+import { PROOF_OF_HUMANITY } from "config/contracts";
 
 const vouchText = `
 Make sure the person exists and that you have physically encountered
@@ -22,37 +21,27 @@ registered, and another submission is not using your vouch.
 `;
 
 export default function GasslessVouchButton({ submissionID }) {
-  const web3Context = useWeb3Context();
-  const [accounts] = useWeb3("eth", "getAccounts");
+  const { web3, connect, account, chainId } = useWeb3();
   const [addVouchLabel, setAddVouchLabel] = useState(vouchText);
-  const [registered] = useContract(
-    "proofOfHumanity",
+  const [registered] = useContractCall(
+    PROOF_OF_HUMANITY,
     "isRegistered",
-    useMemo(() => ({ args: [accounts?.[0]] }), [accounts])
+    useMemo(() => ({ args: [account] }), [account])
   );
-  const [vouched] = useContract(
-    "proofOfHumanity",
+  const [vouched] = useContractCall(
+    PROOF_OF_HUMANITY,
     "vouches",
-    useMemo(
-      () => ({ args: [accounts?.[0], submissionID] }),
-      [accounts, submissionID]
-    )
+    useMemo(() => ({ args: [account, submissionID] }), [account, submissionID])
   );
-  const signVouch = useCallback(async () => {
-    if (!web3Context) return;
 
-    const { connect, web3 } = web3Context;
-    if (!accounts?.[0]) {
-      await connect();
-      return;
-    }
-    const chainId = await web3.eth.net.getId();
+  const signVouch = useCallback(async () => {
+    if (!account) return connect();
 
     const messageParameters = JSON.stringify({
       domain: {
         chainId,
         name: "Proof of Humanity",
-        verifyingContract: pohAddress,
+        verifyingContract: PROOF_OF_HUMANITY.ADDRESS[chainId],
       },
       message: {
         vouchedSubmission: submissionID,
@@ -73,28 +62,19 @@ export default function GasslessVouchButton({ submissionID }) {
       },
     });
 
-    const from = accounts?.[0];
+    const from = account;
     const parameters = [from, messageParameters];
     const method = "eth_signTypedData_v4";
 
     const promiseRequestSignature = () =>
       new Promise((resolve, reject) => {
         web3.currentProvider.sendAsync(
-          {
-            method,
-            params: parameters,
-            from,
-          },
-          (err, result) => {
-            if (err) return reject(err);
-
-            return resolve(result);
-          }
+          { method, params: parameters, from },
+          (err, result) => (err ? reject(err) : resolve(result))
         );
       });
 
-    const result = await promiseRequestSignature();
-    const signature = result.result;
+    const { result: signature } = await promiseRequestSignature();
 
     return fetch(`${process.env.NEXT_PUBLIC_VOUCH_DB_URL}/vouch/add`, {
       method: "POST",
@@ -104,7 +84,8 @@ export default function GasslessVouchButton({ submissionID }) {
         msgData: messageParameters,
       }),
     });
-  }, [accounts, submissionID, web3Context]);
+  }, [account, submissionID, chainId, connect, web3]);
+
   return registered || vouched ? (
     <Popup
       trigger={

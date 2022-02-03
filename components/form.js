@@ -18,7 +18,6 @@ import Checkbox from "./checkbox";
 import Input from "./input";
 import Label from "./label";
 import Text from "./text";
-import { useWeb3 } from "./web3-provider";
 
 function ETH(...args) {
   string.apply(this, args);
@@ -103,7 +102,6 @@ export default function Form({
   children,
   ...rest
 }) {
-  const { web3 } = useWeb3();
   const validationSchema = useMemo(
     () =>
       object(
@@ -121,11 +119,11 @@ export default function Form({
           string() {
             return string().default("");
           },
-          web3,
         })
       ),
-    [createValidationSchema, web3]
+    [createValidationSchema]
   );
+
   return (
     <ValidationSchemaContext.Provider value={validationSchema}>
       <Formik

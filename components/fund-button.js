@@ -1,10 +1,11 @@
 import { useCallback, useMemo } from "react";
+import Web3 from "web3";
 
 import Button from "./button";
 import Form, { Field } from "./form";
 import Popup from "./popup";
 import Text from "./text";
-import { useContract, useWeb3 } from "./web3-provider";
+import { useContractSend } from "./web3-provider";
 
 export default function FundButton({
   totalCost,
@@ -19,11 +20,11 @@ export default function FundButton({
     [totalCost, totalContribution]
   );
   const createValidationSchema = useCallback(
-    ({ eth, web3: _web3 }) => ({
+    ({ eth }) => ({
       contribution: eth()
         .test({
           test(value) {
-            if (value.lte(_web3.utils.toBN(0)))
+            if (value.lte(Web3.utils.toBN(0)))
               return this.createError({
                 message: `You need to contribute something.`,
               });
@@ -42,9 +43,9 @@ export default function FundButton({
     }),
     [amountNeeded]
   );
-  const { send } = useContract(contract, method);
-  const { web3 } = useWeb3();
-  const amountNeededString = web3.utils.fromWei(amountNeeded);
+  const { send } = useContractSend(contract, method);
+  const amountNeededString = Web3.utils.fromWei(amountNeeded);
+
   return (
     <Popup
       trigger={
@@ -69,7 +70,7 @@ export default function FundButton({
           sx={{ padding: 2, textAlign: "center" }}
           createValidationSchema={createValidationSchema}
           onSubmit={async ({ contribution }) => {
-            await send(...args, { value: contribution });
+            await send({ args, options: { value: contribution } });
             close();
           }}
         >

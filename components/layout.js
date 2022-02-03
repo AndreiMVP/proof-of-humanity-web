@@ -16,6 +16,7 @@ function LayoutColumn({ justifyContent, children }) {
     </Flex>
   );
 }
+
 function LayoutRow({ as, sx, left, middle, right }) {
   return (
     <Flex
@@ -36,6 +37,7 @@ function LayoutRow({ as, sx, left, middle, right }) {
     </Flex>
   );
 }
+
 export default function Layout({
   header: { sx: headerSx, ...header },
   mainSx,

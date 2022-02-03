@@ -8,6 +8,7 @@ import {
   TwitterShareButton,
 } from "react-share";
 import { Box, Flex } from "theme-ui";
+import Web3 from "web3";
 
 import Alert from "./alert";
 import Card from "./card";
@@ -19,19 +20,17 @@ import Progress from "./progress";
 import Tabs, { Tab, TabList, TabPanel } from "./tabs";
 import Text from "./text";
 import TimeAgo from "./time-ago";
-import { useContract, useWeb3 } from "./web3-provider";
+import { useContractCall } from "./web3-provider";
+
+import { KLEROS_LIQUID } from "config/contracts";
 
 function isWinnerAndOpposingPartyDidntPay(
-  web3,
   isWinner,
   oppositeHasPaid,
   loserDeadline
 ) {
-  const currentTime = web3.utils.toBN(Math.floor(Date.now() / 1000));
-  if (isWinner && !oppositeHasPaid && loserDeadline?.lt(currentTime))
-    return true;
-
-  return false;
+  const currentTime = Web3.utils.toBN(Math.floor(Date.now() / 1000));
+  return isWinner && !oppositeHasPaid && loserDeadline?.lt(currentTime);
 }
 
 function AppealTabPanelCard({
@@ -49,9 +48,8 @@ function AppealTabPanelCard({
   args,
   partyLabel,
 }) {
-  const { web3 } = useWeb3();
-  const totalContribution = web3.utils.toBN(paidFees);
-  const card = (
+  const totalContribution = Web3.utils.toBN(paidFees);
+  return (
     <Card
       sx={{ minWidth: 480 }}
       header={
@@ -78,10 +76,10 @@ function AppealTabPanelCard({
       >
         {cost &&
           `${totalContribution
-            .mul(web3.utils.toBN(100))
-            .div(cost)}% Funded / ${web3.utils.fromWei(
+            .mul(Web3.utils.toBN(100))
+            .div(cost)}% Funded / ${Web3.utils.fromWei(
             totalContribution
-          )} ETH of ${web3.utils.fromWei(cost)} ETH`}
+          )} ETH of ${Web3.utils.fromWei(cost)} ETH`}
       </Text>
       <Progress
         sx={{
@@ -97,13 +95,12 @@ function AppealTabPanelCard({
         {hasPaid ? (
           "Fully funded."
         ) : isWinnerAndOpposingPartyDidntPay(
-            web3,
             isWinner,
             oppositeHasPaid,
             loserDeadline
           ) ? (
           "This side already won, opposing party did not fund the appeal."
-        ) : deadline && deadline.eq(web3.utils.toBN(0)) ? (
+        ) : deadline && deadline.eq(Web3.utils.toBN(0)) ? (
           "Previous round is still in progress."
         ) : (
           <TimeAgo datetime={deadline * 1000} />
@@ -116,15 +113,14 @@ function AppealTabPanelCard({
       </Alert>
       {!hasPaid &&
         !isWinnerAndOpposingPartyDidntPay(
-          web3,
           isWinner,
           oppositeHasPaid,
           loserDeadline
         ) &&
         cost &&
         deadline &&
-        !deadline.eq(web3.utils.toBN(0)) &&
-        deadline.gt(web3.utils.toBN(Math.floor(Date.now() / 1000))) && (
+        !deadline.eq(Web3.utils.toBN(0)) &&
+        deadline.gt(Web3.utils.toBN(Math.floor(Date.now() / 1000))) && (
           <FundButton
             totalCost={cost}
             totalContribution={totalContribution}
@@ -137,9 +133,8 @@ function AppealTabPanelCard({
         )}
     </Card>
   );
-
-  return card;
 }
+
 function AppealTabPanel({
   sharedStakeMultiplier,
   winnerStakeMultiplier,
@@ -155,12 +150,11 @@ function AppealTabPanel({
   contract,
   args,
 }) {
-  const { web3 } = useWeb3();
-  sharedStakeMultiplier = web3.utils.toBN(sharedStakeMultiplier);
-  winnerStakeMultiplier = web3.utils.toBN(winnerStakeMultiplier);
-  loserStakeMultiplier = web3.utils.toBN(loserStakeMultiplier);
-  const divisor = web3.utils.toBN(10000);
-  const hundred = web3.utils.toBN(100);
+  sharedStakeMultiplier = Web3.utils.toBN(sharedStakeMultiplier);
+  winnerStakeMultiplier = Web3.utils.toBN(winnerStakeMultiplier);
+  loserStakeMultiplier = Web3.utils.toBN(loserStakeMultiplier);
+  const divisor = Web3.utils.toBN(10000);
+  const hundred = Web3.utils.toBN(100);
   const undecided = {
     label: "Previous round undecided.",
     reward: sharedStakeMultiplier.mul(hundred).div(sharedStakeMultiplier),
@@ -174,8 +168,8 @@ function AppealTabPanel({
     reward: winnerStakeMultiplier.mul(hundred).div(loserStakeMultiplier),
   };
 
-  const [appealCost] = useContract(
-    "klerosLiquid",
+  const [appealCost] = useContractCall(
+    KLEROS_LIQUID,
     "appealCost",
     useMemo(
       () => ({ address: arbitrator, args: [disputeID, arbitratorExtraData] }),
@@ -194,8 +188,8 @@ function AppealTabPanel({
     );
   }
 
-  const [appealPeriod] = useContract(
-    "klerosLiquid",
+  const [appealPeriod] = useContractCall(
+    KLEROS_LIQUID,
     "appealPeriod",
     useMemo(
       () => ({ address: arbitrator, args: [disputeID] }),
@@ -206,12 +200,12 @@ function AppealTabPanel({
     undecided.deadline = appealPeriod.end;
     winner.deadline = appealPeriod.end;
     loser.deadline = appealPeriod.start.add(
-      appealPeriod.end.sub(appealPeriod.start).div(web3.utils.toBN(2))
+      appealPeriod.end.sub(appealPeriod.start).div(Web3.utils.toBN(2))
     );
   }
 
-  let [currentRuling] = useContract(
-    "klerosLiquid",
+  let [currentRuling] = useContractCall(
+    KLEROS_LIQUID,
     "currentRuling",
     useMemo(
       () => ({ address: arbitrator, args: [disputeID] }),
@@ -272,6 +266,7 @@ function AppealTabPanel({
     </>
   );
 }
+
 export default function Appeal({
   challenges,
   sharedStakeMultiplier,

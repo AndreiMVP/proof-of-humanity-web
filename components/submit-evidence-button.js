@@ -6,7 +6,7 @@ import FileUpload from "./file-upload";
 import Form, { Field } from "./form";
 import Popup from "./popup";
 import Textarea from "./textarea";
-import { useContract } from "./web3-provider";
+import { useContractSend } from "./web3-provider";
 
 const FILE_OPTIONS = {
   size: {
@@ -26,9 +26,10 @@ const createValidationSchema = ({ string, file }) => ({
     (value) => (!value ? true : value.size <= FILE_OPTIONS.size.value)
   ),
 });
+
 export default function SubmitEvidenceButton({ contract, args }) {
   const { upload } = useArchon();
-  const { send } = useContract(contract, "submitEvidence");
+  const { send } = useContractSend(contract, "submitEvidence");
   const [state, setState] = useState("idle");
 
   return (
@@ -54,7 +55,7 @@ export default function SubmitEvidenceButton({ contract, args }) {
             );
 
             setState("submitting-tx");
-            await send(...args, evidenceUploadResult.pathname);
+            await send({ args, options: evidenceUploadResult.pathname });
 
             setState("idle");
             close();

@@ -9,7 +9,7 @@ import {
   Link,
   Text,
   Video,
-  useContract,
+  useContractCall,
   useWeb3,
 } from "@kleros/components";
 import { User } from "@kleros/icons";
@@ -24,6 +24,7 @@ import {
   TwitterShareButton,
 } from "react-share";
 import { graphql, useFragment } from "relay-hooks";
+import Web3 from "web3";
 
 import Deadlines from "./deadlines";
 import GaslessVouchButton from "./gasless-vouch";
@@ -31,6 +32,7 @@ import SmallAvatar from "./small-avatar";
 import UBICard from "./ubi-card";
 import VouchButton from "./vouch-button";
 
+import { KLEROS_LIQUID, PROOF_OF_HUMANITY } from "config/contracts";
 import {
   challengeReasonEnum,
   partyEnum,
@@ -144,9 +146,8 @@ export default function SubmissionDetailsCard({
     "desc"
   );
 
-  const [accounts] = useWeb3("eth", "getAccounts");
-  const isSelf =
-    accounts?.[0] && accounts[0].toLowerCase() === id.toLowerCase();
+  const { account } = useWeb3();
+  const isSelf = account && account.toLowerCase() === id.toLowerCase();
 
   const { lastStatusChange } = request;
   const {
@@ -188,8 +189,8 @@ export default function SubmissionDetailsCard({
   const displayName =
     compoundName === name ? name : `${compoundName} (${name})`;
 
-  const [arbitrationCost] = useContract(
-    "klerosLiquid",
+  const [arbitrationCost] = useContractCall(
+    KLEROS_LIQUID,
     "arbitrationCost",
     useMemo(
       () => ({
@@ -199,18 +200,18 @@ export default function SubmissionDetailsCard({
       [request]
     )
   );
-  const { web3 } = useWeb3();
+
   const totalCost = useMemo(
-    () => arbitrationCost?.add(web3.utils.toBN(submissionBaseDeposit)),
-    [arbitrationCost, web3.utils, submissionBaseDeposit]
+    () => arbitrationCost?.add(Web3.utils.toBN(submissionBaseDeposit)),
+    [arbitrationCost, submissionBaseDeposit]
   );
   const totalContribution = useMemo(
     () =>
       contributions.reduce(
-        (acc, { Requester }) => acc.add(web3.utils.toBN(Requester)),
-        web3.utils.toBN(0)
+        (acc, { Requester }) => acc.add(Web3.utils.toBN(Requester)),
+        Web3.utils.toBN(0)
       ),
-    [contributions, web3.utils]
+    [contributions]
   );
 
   const [offChainVouches, setOffChainVouches] = useState([]);
@@ -316,7 +317,7 @@ export default function SubmissionDetailsCard({
                 <FundButton
                   totalCost={totalCost}
                   totalContribution={totalContribution}
-                  contract="proofOfHumanity"
+                  contract={PROOF_OF_HUMANITY}
                   method="fundSubmission"
                   args={[id]}
                 >
@@ -357,7 +358,7 @@ export default function SubmissionDetailsCard({
                   : totalCost
                   ? `${(
                       totalContribution
-                        .mul(web3.utils.toBN(10000)) // Basis points.
+                        .mul(Web3.utils.toBN(10000)) // Basis points.
                         .div(totalCost)
                         .toNumber() / 100
                     ).toFixed(2)}%`

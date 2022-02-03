@@ -4,6 +4,7 @@ import Archon from "@kleros/archon";
 import Dataloader from "dataloader";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -14,12 +15,14 @@ import usePromise from "react-use-promise";
 
 import { useWeb3 } from "./web3-provider";
 
+import { CHAIN_KEY } from "config/chains";
+
 const Context = createContext();
 const sanitize = (input) =>
   input
     .toString()
     .toLowerCase()
-    .replace(/([^\d.a-z]+)/gi, "-"); // Only allow numbers and aplhanumeric.
+    .replace(/([^\d.a-z]+)/gi, "-"); // Only allow numbers and alphanumeric.
 
 export default function ArchonProvider({ children }) {
   const { web3 } = useWeb3();
@@ -30,6 +33,7 @@ export default function ArchonProvider({ children }) {
         `${process.env.NEXT_PUBLIC_IPFS_GATEWAY}`
       )
   );
+
   useEffect(() => {
     if (web3.currentProvider !== archon.arbitrable.web3.currentProvider)
       archon.setProvider(web3.currentProvider);
@@ -43,9 +47,7 @@ export default function ArchonProvider({ children }) {
           upload(fileName, buffer) {
             return fetch(`${process.env.NEXT_PUBLIC_IPFS_GATEWAY}/add`, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 fileName: sanitize(fileName),
                 buffer: Buffer.from(buffer),
@@ -125,129 +127,126 @@ export function useArchon() {
 }
 
 export function createUseDataloaders(fetchers) {
-  const dataloaders = Object.keys(fetchers).reduce((acc, name) => {
-    acc[name] = new Dataloader(
-      (argsArr) =>
-        Promise.all(
-          argsArr.map((args) => fetchers[name](...args).catch((err) => err))
-        ),
-      {
-        cacheKeyFn([, ...args]) {
-          return JSON.stringify(args);
-        },
-      }
-    );
-    return acc;
-  }, {});
-
-  return Object.keys(dataloaders).reduce((acc, name) => {
-    acc[name] = function useDataloader() {
-      const [state, setState] = useState({});
-      const loadedRef = useRef({});
-      const mountedRef = useRef({});
-      useEffect(() => () => (mountedRef.current = false), []);
-
-      const { web3 } = useWeb3();
-      const { archon } = useArchon();
-      return (...args) => {
-        const key = JSON.stringify(args);
-        const cacheResult = (res) => {
-          if (mountedRef.current) {
-            loadedRef.current[key] = true;
-            setState((_state) => ({ ..._state, [key]: res }));
-          }
-        };
-        return loadedRef.current[key]
-          ? state[key]
-          : dataloaders[name]
-              .load([{ web3, archon }, ...args])
-              .then(cacheResult, cacheResult) && undefined;
-      };
-    };
-    return acc;
-  }, {});
-}
-
-export function createDerivedAccountAPIs(APIDescriptors, userSettingsURL) {
-  const APIs = APIDescriptors.reduce(
-    (acc, { name, method, URL, payloadKey }) => {
-      acc[name] = async (web3, payload) => {
-        const [account] = await web3.eth.getAccounts();
-        const derivedAccount = await web3.deriveAccount(
-          "To keep your data safe and to use certain features, we ask that you sign this message to create a secret key for your account. This key is unrelated from your main Ethereum account and will not be able to send any transactions.",
-          method !== "GET"
-        );
-
-        const fetcher = () =>
-          fetch(URL, {
-            method: method === "GET" ? "POST" : method,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              payload: {
-                address: account,
-                network: web3.ETHNet.name,
-                signature: derivedAccount?.sign?.(JSON.stringify(payload))
-                  .signature,
-                [payloadKey]: payload,
-              },
-            }),
-          }).then((res) => res.json());
-        const res = await fetcher();
-
-        if (res.error && derivedAccount) {
-          const settings = {
-            derivedAccountAddress: {
-              S: derivedAccount.address,
-            },
-          };
-          await fetch(userSettingsURL, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              payload: {
-                address: account,
-                signature: await web3.eth.personal.sign(
-                  JSON.stringify(settings),
-                  account
-                ),
-                settings,
-              },
-            }),
-          }).then((_res) => _res.json());
-
-          return fetcher();
-        }
-
-        return res;
-      };
-      return acc;
-    },
+  const dataloaders = Object.keys(fetchers).reduce(
+    (acc, name) => ({
+      ...acc,
+      [name]: new Dataloader(
+        (argsArr) =>
+          Promise.all(
+            argsArr.map((args) => fetchers[name](...args).catch((err) => err))
+          ),
+        { cacheKeyFn: ([, ...args]) => JSON.stringify(args) }
+      ),
+    }),
     {}
   );
 
-  return {
-    APIs,
-    useAPIs: APIDescriptors.reduce((acc, { method, name }) => {
-      acc[name] = function useAPI(payload) {
-        const isGet = method === "GET";
+  return Object.keys(dataloaders).reduce(
+    (acc, name) => ({
+      ...acc,
+      [name]: function useDataloader() {
+        const [state, setState] = useState({});
+        const loadedRef = useRef({});
+        const mountedRef = useRef({});
+        useEffect(() => () => (mountedRef.current = false), []);
+
         const { web3 } = useWeb3();
+        const { archon } = useArchon();
+
+        return (...args) => {
+          const key = JSON.stringify(args);
+          const cacheResult = (res) => {
+            if (mountedRef.current) {
+              loadedRef.current[key] = true;
+              setState((_state) => ({ ..._state, [key]: res }));
+            }
+          };
+          return loadedRef.current[key]
+            ? state[key]
+            : dataloaders[name]
+                .load([{ web3, archon }, ...args])
+                .then(cacheResult, cacheResult) && undefined;
+        };
+      },
+    }),
+    {}
+  );
+}
+
+export const createDerivedAccountAPIs = (APIDescriptors, userSettingsURL) =>
+  APIDescriptors.map(
+    ({ method, URL, payloadKey }) =>
+      function useAPI(payload) {
+        const isGet = method === "GET";
+
+        const { web3, account, deriveAccount, chainId } = useWeb3();
         const [promise, setPromise] = useState();
-        const data = usePromise(
-          () => (isGet ? APIs[name](web3, payload) : promise),
-          [isGet, web3, payload, promise]
+
+        const apiCall = useCallback(
+          async (_payload) => {
+            const derivedAccount = await deriveAccount(
+              "To keep your data safe and to use certain features, we ask that you sign this message to create a secret key for your account. This key is unrelated from your main Ethereum account and will not be able to send any transactions.",
+              method !== "GET"
+            );
+
+            const fetcher = () =>
+              fetch(URL, {
+                method: method === "GET" ? "POST" : method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  payload: {
+                    address: account,
+                    network: CHAIN_KEY[chainId],
+                    signature: derivedAccount?.sign?.(JSON.stringify(payload))
+                      .signature,
+                    [payloadKey]: _payload,
+                  },
+                }),
+              }).then((res) => res.json());
+
+            const res = await fetcher();
+
+            if (res.error && derivedAccount) {
+              const settings = {
+                derivedAccountAddress: { S: derivedAccount.address },
+              };
+              await fetch(userSettingsURL, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  payload: {
+                    address: account,
+                    signature: await web3.eth.personal.sign(
+                      JSON.stringify(settings),
+                      account
+                    ),
+                    settings,
+                  },
+                }),
+              }).then((_res) => _res.json());
+
+              return fetcher();
+            }
+
+            return res;
+          },
+          [account, chainId, deriveAccount, payload, web3.eth.personal]
         );
+
+        const data = usePromise(
+          () => (isGet ? apiCall(payload) : promise),
+          [isGet, payload, promise, apiCall]
+        );
+
         return isGet
           ? data
           : {
               send(_payload) {
-                const _promise = APIs[name](web3, { payload, ..._payload });
+                const _promise = apiCall({ payload, ..._payload });
                 setPromise(_promise);
                 return _promise;
               },
               data,
             };
-      };
-      return acc;
-    }, {}),
-  };
-}
+      }
+  );

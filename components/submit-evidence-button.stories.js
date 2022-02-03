@@ -41,6 +41,7 @@ const contracts = [
     address: { [network]: address },
   },
 ];
+
 function Template(args) {
   return (
     <Web3Provider

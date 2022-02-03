@@ -2,6 +2,7 @@ import { Settings } from "@kleros/icons";
 import { useCallback, useMemo } from "react";
 import { useQuery } from "relay-hooks";
 import { Box, Flex, IconButton } from "theme-ui";
+import Web3 from "web3";
 
 import Button from "./button";
 import Divider from "./divider";
@@ -9,16 +10,14 @@ import Identicon from "./identicon";
 import Image from "./image";
 import NetworkTag from "./network-tag";
 import { NextETHLink } from "./next-router";
-import { zeroAddress } from "./parsing";
 import Popup from "./popup";
 import Tabs, { Tab, TabList, TabPanel } from "./tabs";
 import Text from "./text";
 import UserSettings from "./user-settings";
-import { useContract, useWeb3 } from "./web3-provider";
+import { useContractSend, useWeb3 } from "./web3-provider";
 
 import { appQuery } from "_pages/index/app-query";
-import ProofOfHumanityAbi from "subgraph/abis/proof-of-humanity";
-import { address as pohAddress } from "subgraph/config";
+import { PROOF_OF_HUMANITY, TBATCHER, ZERO_ADDRESS } from "config/contracts";
 
 export default function AccountSettingsPopup({
   name,
@@ -28,26 +27,23 @@ export default function AccountSettingsPopup({
   parseSettings,
   normalizeSettings,
 }) {
-  const [accounts] = useWeb3("eth", "getAccounts");
-  const { connect, web3 } = useWeb3();
+  const { connect, web3, account, chainId, disconnect } = useWeb3();
   const { props } = useQuery(appQuery, {
-    contributor: accounts?.[0] || zeroAddress,
-    id: accounts?.[0] || zeroAddress,
+    contributor: account || ZERO_ADDRESS,
+    id: account || ZERO_ADDRESS,
   });
-  const changeWallet = useCallback(() => {
-    // Delete walletconnect connection, if any.
-    // Otherwise users can get stuck with a buggy connection.
-    localStorage.removeItem("WEB3_CONNECT_CACHED_PROVIDER");
-    localStorage.removeItem("walletconnect");
-    connect();
-  }, [connect]);
 
   const { contributions: withdrawableContributions } = props ?? {};
-  const { send: batchSend } = useContract("transactionBatcher", "batchSend");
-  const pohInstance = useMemo(() => {
-    if (!ProofOfHumanityAbi || !pohAddress) return;
-    return new web3.eth.Contract(ProofOfHumanityAbi, pohAddress);
-  }, [web3.eth.Contract]);
+  const { send: batchSend } = useContractSend(TBATCHER, "batchSend");
+
+  const pohInstance = useMemo(
+    () =>
+      new web3.eth.Contract(
+        PROOF_OF_HUMANITY.ABI,
+        PROOF_OF_HUMANITY.ADDRESS[chainId]
+      ),
+    [web3.eth.Contract, chainId]
+  );
 
   const withdrawFeesAndRewards = useCallback(() => {
     if (!batchSend || withdrawableContributions?.length === 0) return;
@@ -60,7 +56,7 @@ export default function AccountSettingsPopup({
         const { id } = submission;
         return pohInstance.methods
           .withdrawFeesAndRewards(
-            accounts[0],
+            account,
             id,
             requestIndex,
             challengeID,
@@ -69,17 +65,23 @@ export default function AccountSettingsPopup({
           .encodeABI();
       }
     );
-    batchSend(
-      [...new Array(withdrawCalls.length).fill(pohAddress)],
-      [...new Array(withdrawCalls.length).fill(web3.utils.toBN(0))],
-      withdrawCalls
-    );
+    batchSend({
+      args: [
+        [
+          ...new Array(withdrawCalls.length).fill(
+            PROOF_OF_HUMANITY.ADDRESS[chainId]
+          ),
+        ],
+        [...new Array(withdrawCalls.length).fill(Web3.utils.toBN(0))],
+        withdrawCalls,
+      ],
+    });
   }, [
-    accounts,
+    account,
     batchSend,
     pohInstance.methods,
-    web3.utils,
     withdrawableContributions,
+    chainId,
   ]);
 
   return (
@@ -119,36 +121,33 @@ export default function AccountSettingsPopup({
                 marginBottom: 3,
               }}
             >
-              {accounts &&
-                (accounts.length === 0 ? (
-                  "Connected to Infura"
-                ) : (
-                  <Flex sx={{ alignItems: "center" }}>
-                    {photo ? (
-                      <Image
-                        sx={{
-                          objectFit: "contain",
-                          width: 32,
-                          height: 32,
-                        }}
-                        variant="avatar"
-                        src={photo}
-                      />
-                    ) : (
-                      <Identicon address={accounts[0]} />
+              {account ? (
+                <Flex sx={{ alignItems: "center" }}>
+                  {photo ? (
+                    <Image
+                      sx={{
+                        objectFit: "contain",
+                        width: 32,
+                        height: 32,
+                      }}
+                      variant="avatar"
+                      src={photo}
+                    />
+                  ) : (
+                    <Identicon address={account} />
+                  )}
+                  <Box sx={{ marginLeft: 1 }}>
+                    {name && (
+                      <Text sx={{ fontSize: 0, marginBottom: "4px" }}>
+                        {name}
+                      </Text>
                     )}
-                    <Box sx={{ marginLeft: 1 }}>
-                      {name && (
-                        <Text sx={{ fontSize: 0, marginBottom: "4px" }}>
-                          {name}
-                        </Text>
-                      )}
-                      <NextETHLink address={accounts[0]}>
-                        {accounts[0]}
-                      </NextETHLink>
-                    </Box>
-                  </Flex>
-                ))}
+                    <NextETHLink address={account}>{account}</NextETHLink>
+                  </Box>
+                </Flex>
+              ) : (
+                "Connected to RPC"
+              )}
             </Text>
             <NetworkTag sx={{ mb: 1 }} />
             <Divider />
@@ -158,10 +157,9 @@ export default function AccountSettingsPopup({
                 marginTop: -2,
                 marginX: "auto",
               }}
-              onClick={changeWallet}
+              onClick={account ? disconnect : connect}
             >
-              {accounts &&
-                `${accounts.length === 0 ? "Connect" : "Change"} Wallet`}
+              {account ? "Disconnect" : "Connect"} Wallet
             </Button>
             {withdrawableContributions?.length > 0 && (
               <Button

@@ -13,13 +13,16 @@ import {
   Text,
   Textarea,
   useArchon,
-  useContract,
+  useContractSend,
   useWeb3,
 } from "@kleros/components";
 import { useField } from "formik";
 import { useRouter } from "next/router";
 import { memo, useCallback, useEffect, useRef } from "react";
+import Web3 from "web3";
 
+import { CHAIN_SETTING } from "config/chains";
+import { PROOF_OF_HUMANITY } from "config/contracts";
 import { useEvidenceFile } from "data";
 import getVideoEmptyBorderSize from "lib/get-video-empty-border-size";
 
@@ -64,16 +67,15 @@ function pageScroll() {
 }
 
 function UpdateTotalCost({ totalCost }) {
-  const { web3 } = useWeb3();
   const totalCostRef = useRef(totalCost);
   const field = useField("contribution");
   const setValue = field[2].setValue;
   useEffect(() => {
-    if (totalCost && totalCostRef.current !== web3.utils.fromWei(totalCost)) {
-      totalCostRef.current = web3.utils.fromWei(totalCost);
+    if (totalCost && totalCostRef.current !== Web3.utils.fromWei(totalCost)) {
+      totalCostRef.current = Web3.utils.fromWei(totalCost);
       setValue(totalCostRef.current);
     }
-  }, [totalCost, setValue, web3.utils]);
+  }, [totalCost, setValue]);
   return null;
 }
 
@@ -90,29 +92,22 @@ const SubmitProfileForm = memo(
     onSubmissionUploadProgress,
     setWaitingForTransaction,
   }) => {
-    const { web3 } = useWeb3();
-
+    const router = useRouter();
+    const { web3, account, chainId } = useWeb3();
     const { upload, uploadWithProgress } = useArchon();
-    const { send } = useContract(
-      "proofOfHumanity",
+    const { send } = useContractSend(
+      PROOF_OF_HUMANITY,
       reapply ? "reapplySubmission" : "addSubmission"
     );
 
     const metaEvidence = useEvidenceFile()(registrationMetaEvidence.URI);
 
-    const router = useRouter();
-
-    const handleFormReset = useCallback(() => {
-      router.back();
-    }, [router]);
-
-    const [accounts] = useWeb3("eth", "getAccounts");
-    const account = accounts?.[0] ?? null;
+    const handleFormReset = useCallback(() => router.back(), [router]);
 
     return (
       <Form
         createValidationSchema={useCallback(
-          ({ string, file, eth, web3: _web3 }) => {
+          ({ string, file, eth }) => {
             const schema = {
               name: string()
                 .max(50, "Must be 50 characters or less.")
@@ -228,7 +223,7 @@ const SubmitProfileForm = memo(
                 test(value) {
                   if (totalCost && value.gt(totalCost))
                     return this.createError({
-                      message: `You can't contribute more than the base deposit of ${_web3.utils.fromWei(
+                      message: `You can't contribute more than the base deposit of ${Web3.utils.fromWei(
                         totalCost
                       )} ETH.`,
                     });
@@ -238,7 +233,7 @@ const SubmitProfileForm = memo(
             };
             if (totalCost)
               schema.contribution = schema.contribution.default(
-                _web3.utils.fromWei(totalCost)
+                Web3.utils.fromWei(totalCost)
               );
             return schema;
           },
@@ -280,7 +275,7 @@ const SubmitProfileForm = memo(
                 name: "Proof Of Humanity",
               },
               message: {
-                claim: `Reapplying for proof of humanity. My address is ${accounts?.[0].toLowerCase()}`,
+                claim: `Reapplying for proof of humanity. My address is ${account?.toLowerCase()}`,
               },
               primaryType: "Auth",
               types: {
@@ -289,23 +284,15 @@ const SubmitProfileForm = memo(
               },
             });
 
-            const from = accounts?.[0];
+            const from = account;
             const parameters = [from, messageParameters];
             const method = "eth_signTypedData_v4";
 
             const promiseRequestSignature = () =>
               new Promise((resolve, reject) => {
                 web3.currentProvider.sendAsync(
-                  {
-                    method,
-                    params: parameters,
-                    from,
-                  },
-                  (err, result) => {
-                    if (err) return reject(err);
-
-                    return resolve(result);
-                  }
+                  { method, params: parameters, from },
+                  (err, result) => (err ? reject(err) : resolve(result))
                 );
               });
 
@@ -317,10 +304,7 @@ const SubmitProfileForm = memo(
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  signature,
-                  submissionId: accounts?.[0],
-                }),
+                body: JSON.stringify({ signature, submissionId: account }),
               }
             );
           }
@@ -328,8 +312,11 @@ const SubmitProfileForm = memo(
           try {
             setWaitingForTransaction(true);
             pageScroll();
-            const result = await send(evidence, name, {
-              value: String(contribution) === "" ? 0 : contribution,
+            const result = await send({
+              args: [evidence, name],
+              options: {
+                value: String(contribution) === "" ? 0 : contribution,
+              },
             });
 
             onSend?.();
@@ -520,7 +507,8 @@ const SubmitProfileForm = memo(
               name="contribution"
               label={({ field }) => (
                 <Text>
-                  Initial Deposit (ETH)
+                  Initial Deposit (
+                  {CHAIN_SETTING[chainId].nativeCurrency.symbol})
                   <Button
                     as={Box}
                     variant="secondary"
@@ -528,15 +516,15 @@ const SubmitProfileForm = memo(
                       marginX: 2,
                       ...(totalCost &&
                         field[1].value.replaceAll?.(",", ".") ===
-                          web3.utils.fromWei(totalCost) && {
+                          Web3.utils.fromWei(totalCost) && {
                           backgroundColor: "skeleton",
                         }),
                     }}
                     onClick={() =>
-                      field[2].setValue(web3.utils.fromWei(totalCost))
+                      field[2].setValue(Web3.utils.fromWei(totalCost))
                     }
                   >
-                    Self Fund: {totalCost ? web3.utils.fromWei(totalCost) : "-"}
+                    Self Fund: {totalCost ? Web3.utils.fromWei(totalCost) : "-"}
                   </Button>
                   <Button
                     as={Box}
@@ -544,11 +532,11 @@ const SubmitProfileForm = memo(
                     sx={
                       totalCost &&
                       field[1].value.replaceAll?.(",", ".") !==
-                        web3.utils.fromWei(totalCost) && {
+                        Web3.utils.fromWei(totalCost) && {
                         backgroundColor: "skeleton",
                       }
                     }
-                    onClick={() => field[2].setValue(web3.utils.toBN(0))}
+                    onClick={() => field[2].setValue(Web3.utils.toBN(0))}
                   >
                     Crowdfund
                   </Button>
@@ -559,7 +547,7 @@ const SubmitProfileForm = memo(
               sx={({ field }) =>
                 totalCost &&
                 field[1].value.replaceAll?.(",", ".") ===
-                  web3.utils.fromWei(totalCost) && {
+                  Web3.utils.fromWei(totalCost) && {
                   display: "none",
                 }
               }

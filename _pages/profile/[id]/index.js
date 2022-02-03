@@ -19,8 +19,7 @@ import { submissionStatusEnum } from "data";
 
 export default function ProfileWithID() {
   const { props } = useQuery();
-  const [accounts] = useWeb3("eth", "getAccounts");
-  const account = accounts?.[0];
+  const { account } = useWeb3();
 
   const router = useRouter();
   const { query } = router;
@@ -30,10 +29,7 @@ export default function ProfileWithID() {
 
   const handleAfterSend = useCallback(async () => {
     if (reapply)
-      router.push({
-        pathname: "/profile/[id]",
-        query: { id: account },
-      });
+      router.push({ pathname: "/profile/[id]", query: { id: account } });
     await new Promise((r) => setTimeout(r, 3000));
     location.reload();
   }, [reapply, router, account]);

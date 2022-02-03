@@ -3,34 +3,34 @@ import {
   Button,
   Popup,
   Text,
-  useContract,
+  useContractCall,
+  useContractSend,
   useWeb3,
 } from "@kleros/components";
 import { Warning } from "@kleros/icons";
 import { useMemo } from "react";
 
 import useIsGraphSynced from "_pages/index/use-is-graph-synced";
+import { PROOF_OF_HUMANITY } from "config/contracts";
 
 export default function VouchButton({ submissionID }) {
-  const [accounts] = useWeb3("eth", "getAccounts");
-  const [registered] = useContract(
-    "proofOfHumanity",
+  const { account } = useWeb3();
+  const [registered] = useContractCall(
+    PROOF_OF_HUMANITY,
     "isRegistered",
-    useMemo(() => ({ args: [accounts?.[0]] }), [accounts])
+    useMemo(() => ({ args: [account] }), [account])
   );
-  const [vouched, , status, reCall] = useContract(
-    "proofOfHumanity",
+  const [vouched, , status, reCall] = useContractCall(
+    PROOF_OF_HUMANITY,
     "vouches",
-    useMemo(
-      () => ({ args: [accounts?.[0], submissionID] }),
-      [accounts, submissionID]
-    )
+    useMemo(() => ({ args: [account, submissionID] }), [account, submissionID])
   );
   const {
     receipt: addVouchReceipt,
     send: addVouchSend,
     loading: addVouchLoading,
-  } = useContract("proofOfHumanity", "addVouch");
+  } = useContractSend(PROOF_OF_HUMANITY, "addVouch");
+
   const isGraphSynced = useIsGraphSynced(addVouchReceipt?.blockNumber);
 
   return registered || vouched ? (
@@ -43,7 +43,7 @@ export default function VouchButton({ submissionID }) {
           }}
           disabled={
             status === "pending" ||
-            accounts?.[0]?.toLowerCase() === submissionID.toLowerCase()
+            account?.toLowerCase() === submissionID.toLowerCase()
           }
           loading={!isGraphSynced}
         >
@@ -65,7 +65,7 @@ export default function VouchButton({ submissionID }) {
           </Text>
           <Button
             onClick={() =>
-              addVouchSend(submissionID)
+              addVouchSend({ args: [submissionID] })
                 .then(reCall)
                 .then(() => close())
             }

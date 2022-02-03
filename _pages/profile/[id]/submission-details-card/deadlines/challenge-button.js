@@ -10,16 +10,20 @@ import {
   Popup,
   Text,
   Textarea,
-  ethereumAddressRegExp,
   useArchon,
-  useContract,
-  useWeb3,
-  zeroAddress,
+  useContractCall,
+  useContractSend,
 } from "@kleros/components";
 import { useEffect, useMemo, useState } from "react";
 import { graphql, useFragment } from "relay-hooks";
+import Web3 from "web3";
 
 import useIsGraphSynced from "_pages/index/use-is-graph-synced";
+import {
+  KLEROS_LIQUID,
+  PROOF_OF_HUMANITY,
+  ZERO_ADDRESS,
+} from "config/contracts";
 import {
   challengeReasonEnum,
   submissionStatusEnum,
@@ -59,14 +63,12 @@ function ChallengeTypeCard({ type, setType, currentType, ...rest }) {
 }
 function DuplicateInput({ submissionID, setDuplicate }) {
   const [value, setValue] = useState("");
-  const isValidAddress = ethereumAddressRegExp.test(value);
-  const [submission] = useContract(
-    "proofOfHumanity",
+  const isValidAddress = Web3.utils.isAddress(value);
+  const [submission] = useContractCall(
+    PROOF_OF_HUMANITY,
     "getSubmissionInfo",
     useMemo(
-      () => ({
-        args: [isValidAddress ? value : undefined],
-      }),
+      () => ({ args: [isValidAddress ? value : undefined] }),
       [isValidAddress, value]
     )
   );
@@ -80,10 +82,12 @@ function DuplicateInput({ submissionID, setDuplicate }) {
     else
       message =
         "A supposed duplicate should be either registered or pending registration.";
+
   useEffect(() => {
     if (message === "Valid duplicate.") setDuplicate(value);
     else setDuplicate();
   }, [message, setDuplicate, value]);
+
   return (
     <Box sx={{ marginBottom: 2 }}>
       <Input
@@ -117,24 +121,20 @@ export default function ChallengeButton({ request, status, submissionID }) {
 
   const metaEvidence = useEvidenceFile()(_metaEvidence.URI);
 
-  const [arbitrationCost] = useContract(
-    "klerosLiquid",
+  const [arbitrationCost] = useContractCall(
+    KLEROS_LIQUID,
     "arbitrationCost",
     useMemo(
-      () => ({
-        address: arbitrator,
-        args: [arbitratorExtraData],
-      }),
+      () => ({ address: arbitrator, args: [arbitratorExtraData] }),
       [arbitrator, arbitratorExtraData]
     )
   );
-  const { web3 } = useWeb3();
 
   const [type, setType] = useState(challengeReasonEnum.None);
   const duplicateTypeSelected = type === challengeReasonEnum.Duplicate;
   const [duplicate, setDuplicate] = useState();
-  const { receipt, send, loading } = useContract(
-    "proofOfHumanity",
+  const { receipt, send, loading } = useContractSend(
+    PROOF_OF_HUMANITY,
     "challengeRequest"
   );
   const isGraphSynced = useIsGraphSynced(receipt?.blockNumber);
@@ -177,7 +177,7 @@ export default function ChallengeButton({ request, status, submissionID }) {
           >
             <Text>
               {arbitrationCost &&
-                `${web3.utils.fromWei(arbitrationCost)} ETH Deposit`}
+                `${Web3.utils.fromWei(arbitrationCost)} ETH Deposit`}
             </Text>
           </Card>
           {status === submissionStatusEnum.PendingRegistration && (
@@ -243,13 +243,15 @@ export default function ChallengeButton({ request, status, submissionID }) {
                 );
 
               const { pathname } = evidenceUploadResult || {};
-              await send(
-                submissionID,
-                type.index,
-                duplicate || zeroAddress,
-                pathname || null,
-                { value: arbitrationCost }
-              );
+              await send({
+                args: [
+                  submissionID,
+                  type.index,
+                  duplicate || ZERO_ADDRESS,
+                  pathname || null,
+                ],
+                options: { value: arbitrationCost },
+              });
               close();
             }}
             loading={loading}

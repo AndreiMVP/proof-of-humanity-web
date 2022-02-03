@@ -2,8 +2,9 @@ import _NextLink from "next/link";
 import { match } from "path-to-regexp";
 
 import Link from "./link";
+import { useWeb3 } from "./web3-provider";
 
-const defaultNetwork = process.env.NEXT_PUBLIC_NETWORK;
+import { CHAIN_SETTING } from "config/chains";
 
 export function NextLink({ passHref = true, href, as, ...rest }) {
   href = typeof href === "string" ? new URL(href, "http://localhost") : href;
@@ -30,11 +31,11 @@ export function NextLink({ passHref = true, href, as, ...rest }) {
 }
 
 export function NextETHLink({ address, children = address, ...rest }) {
-  const prefix = defaultNetwork === "mainnet" ? "" : `${defaultNetwork}.`;
+  const { chainId } = useWeb3();
   return (
     <Link
       newTab
-      href={`https://${prefix}etherscan.io/address/${address}`}
+      href={`${CHAIN_SETTING[chainId].blockExplorerUrls[0]}/address/${address}`}
       {...rest}
     >
       {children}
@@ -43,10 +44,13 @@ export function NextETHLink({ address, children = address, ...rest }) {
 }
 
 export const createWrapConnection = (queries, queryEnums) => {
-  const matchers = Object.keys(queries).reduce((acc, key) => {
-    acc[key] = match(key, { decode: decodeURIComponent });
-    return acc;
-  }, {});
+  const matchers = Object.keys(queries).reduce(
+    (acc, key) => ({
+      ...acc,
+      [key]: match(key, { decode: decodeURIComponent }),
+    }),
+    {}
+  );
 
   const parseAsPath = (asPath) => {
     let [path, query] = asPath.split("?");

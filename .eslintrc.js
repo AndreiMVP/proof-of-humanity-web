@@ -114,6 +114,7 @@ module.exports = {
         ignoreExports: [
           "pages",
           "./*.js",
+          "config",
           "scripts",
           "subgraph",
           "components/index.js",
@@ -131,6 +132,7 @@ module.exports = {
           "_pages/**",
           "assets/**",
           "lib/**",
+          "config/**",
           "subgraph/**",
           "react-player/lazy",
           "@storybook/addon-docs/blocks",
@@ -355,7 +357,7 @@ module.exports = {
       "error",
       [
         'import.*(/|\\.)";', // Don't use trailing slashes or cyclic index imports.
-        '"\\d+"', // Don't use numerical strings.
+        // '"\\d+"', // Don't use numerical strings.
         "[^\\d]0p[x]", // Don't use pixels unit for zero values.
         "(?=.*[A-F])#[0-9a-fA-F]{1,6}", // Don't use upper case letters in hex colors.
         "@js[x]", // Don't use a custom JSX pragma.
@@ -387,6 +389,7 @@ module.exports = {
         ["data", "./data"],
         ["lib", "./lib"],
         ["subgraph", "./subgraph"],
+        ["config", "./config"],
       ],
     },
     react: { version: "detect" },
@@ -434,6 +437,7 @@ module.exports = {
         "./*.js",
         "scripts/**.js",
         "subgraph/**.js",
+        "config/**.js",
         "components/.storybook/main.js",
       ],
       env: { node: true },

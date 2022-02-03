@@ -8,13 +8,15 @@ import {
   Text,
   Textarea,
   useArchon,
-  useContract,
-  useWeb3,
+  useContractCall,
+  useContractSend,
 } from "@kleros/components";
 import { useMemo } from "react";
 import { graphql, useFragment } from "relay-hooks";
+import Web3 from "web3";
 
 import useIsGraphSynced from "_pages/index/use-is-graph-synced";
+import { KLEROS_LIQUID, PROOF_OF_HUMANITY } from "config/contracts";
 
 const removeButtonFragments = {
   contract: graphql`
@@ -30,6 +32,7 @@ const removeButtonFragments = {
     }
   `,
 };
+
 const createValidationSchema = ({ string, file }) => ({
   name: string().max(50, "Must be 50 characters or less.").required("Required"),
   description: string()
@@ -37,6 +40,7 @@ const createValidationSchema = ({ string, file }) => ({
     .required("Required"),
   file: file(),
 });
+
 export default function RemoveButton({ request, contract, submissionID }) {
   const { arbitrator, arbitratorExtraData } = useFragment(
     removeButtonFragments.request,
@@ -44,27 +48,26 @@ export default function RemoveButton({ request, contract, submissionID }) {
   );
   const { upload } = useArchon();
 
-  const [arbitrationCost] = useContract(
-    "klerosLiquid",
+  const [arbitrationCost] = useContractCall(
+    KLEROS_LIQUID,
     "arbitrationCost",
     useMemo(
-      () => ({
-        address: arbitrator,
-        args: [arbitratorExtraData],
-      }),
+      () => ({ address: arbitrator, args: [arbitratorExtraData] }),
       [arbitrator, arbitratorExtraData]
     )
   );
-  const { web3 } = useWeb3();
   const { submissionBaseDeposit } = useFragment(
     removeButtonFragments.contract,
     contract
   );
   const totalCost = arbitrationCost?.add(
-    web3.utils.toBN(submissionBaseDeposit)
+    Web3.utils.toBN(submissionBaseDeposit)
   );
 
-  const { receipt, send } = useContract("proofOfHumanity", "removeSubmission");
+  const { receipt, send } = useContractSend(
+    PROOF_OF_HUMANITY,
+    "removeSubmission"
+  );
   const isGraphSynced = useIsGraphSynced(receipt?.blockNumber);
   return (
     <Popup
@@ -96,7 +99,10 @@ export default function RemoveButton({ request, contract, submissionID }) {
               "evidence.json",
               JSON.stringify(evidence)
             ));
-            await send(submissionID, evidence, { value: totalCost });
+            await send({
+              args: [submissionID, evidence],
+              options: { value: totalCost },
+            });
             close();
           }}
         >
@@ -109,7 +115,7 @@ export default function RemoveButton({ request, contract, submissionID }) {
                 mainSx={{ padding: 0 }}
               >
                 <Text>
-                  {totalCost && `${web3.utils.fromWei(totalCost)} ETH`}
+                  {totalCost && `${Web3.utils.fromWei(totalCost)} ETH`}
                 </Text>
               </Card>
               <Field

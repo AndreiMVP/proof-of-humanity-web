@@ -5,10 +5,11 @@ import {
   Card,
   Flex,
   Text,
-  useContract,
+  useContractCall,
+  useContractSend,
   useWeb3,
 } from "@kleros/components";
-import { UBI } from "@kleros/icons";
+import { UBI as UBIIcon } from "@kleros/icons";
 import {
   useCallback,
   useEffect,
@@ -18,11 +19,10 @@ import {
   useState,
 } from "react";
 import { graphql, useQuery } from "relay-hooks";
+import Web3 from "web3";
 
+import { PROOF_OF_HUMANITY, TBATCHER, UBI } from "config/contracts";
 import { submissionStatusEnum } from "data";
-import ProofOfHumanityAbi from "subgraph/abis/proof-of-humanity";
-import UBIAbi from "subgraph/abis/ubi";
-import { UBIAddress, address as pohAddress } from "subgraph/config";
 
 function useInterval(callback, delay) {
   const savedCallback = useRef();
@@ -45,7 +45,6 @@ function useInterval(callback, delay) {
 }
 
 function AccruedUBI({
-  web3,
   accruedPerSecond,
   currentBalanceOf,
   registered,
@@ -66,16 +65,16 @@ function AccruedUBI({
   if (
     !registered &&
     currentBalanceOf &&
-    currentBalanceOf.lte(web3.utils.toBN(0))
+    currentBalanceOf.lte(Web3.utils.toBN(0))
   )
     return <Text {...rest}>0 UBI</Text>;
 
   return (
     <Text {...rest}>
       {updatedBalance
-        ? web3.utils.fromWei(updatedBalance).slice(0, 6)
+        ? Web3.utils.fromWei(updatedBalance).slice(0, 6)
         : currentBalanceOf &&
-          web3.utils.fromWei(currentBalanceOf).slice(0, 6)}{" "}
+          Web3.utils.fromWei(currentBalanceOf).slice(0, 6)}{" "}
       UBI
     </Text>
   );
@@ -199,16 +198,17 @@ export default function UBICard({
   registeredVouchers,
   firstRoundFullyFunded,
 }) {
-  const { web3 } = useWeb3();
+  const { web3, chainId } = useWeb3();
   const [, rerender] = useReducer(() => ({}), {});
-  const [requiredNumberOfVouchesBN] = useContract(
-    "proofOfHumanity",
+  const [requiredNumberOfVouchesBN] = useContractCall(
+    PROOF_OF_HUMANITY,
     "requiredNumberOfVouches"
   );
   const requiredNumberOfVouches = useMemo(
     () => Number(requiredNumberOfVouchesBN),
     [requiredNumberOfVouchesBN]
   );
+
   const { props: vouchesReceivedQuery } = useQuery(
     graphql`
       query ubiCardQuery($id: ID!, $vouchesReceivedLength: BigInt!) {
@@ -237,46 +237,46 @@ export default function UBICard({
   );
 
   const [lastMintedSecond, , lastMintedSecondStatus, reCallAccruedSince] =
-    useContract(
-      "UBI",
+    useContractCall(
+      UBI,
       "accruedSince",
       useMemo(() => ({ args: [submissionID] }), [submissionID])
     );
-  const [currentBalanceOf] = useContract(
-    "UBI",
+  const [currentBalanceOf] = useContractCall(
+    UBI,
     "balanceOf",
     useMemo(() => ({ args: [submissionID] }), [submissionID])
   );
-  const [registered] = useContract(
-    "proofOfHumanity",
+  const [registered] = useContractCall(
+    PROOF_OF_HUMANITY,
     "isRegistered",
     useMemo(() => ({ args: [submissionID] }), [submissionID])
   );
   const {
     send: changeStateToPendingSend,
     loading: changeStateToPendingSendLoading,
-  } = useContract("proofOfHumanity", "changeStateToPending");
-  const [accruedPerSecond] = useContract("UBI", "accruedPerSecond");
+  } = useContractSend(PROOF_OF_HUMANITY, "changeStateToPending");
+  const [accruedPerSecond] = useContractCall(UBI, "accruedPerSecond");
 
-  const { send: batchSend } = useContract("transactionBatcher", "batchSend");
-  const { send: reportRemoval, loading: reportRemovalLoading } = useContract(
-    "UBI",
-    "reportRemoval"
+  const { send: batchSend } = useContractSend(TBATCHER, "batchSend");
+  const { send: reportRemoval, loading: reportRemovalLoading } =
+    useContractSend(UBI, "reportRemoval");
+  const { send: startAccruing, loading: startAccruingLoading } =
+    useContractSend(UBI, "startAccruing");
+
+  const pohInstance = useMemo(
+    () =>
+      new web3.eth.Contract(
+        PROOF_OF_HUMANITY.ABI,
+        PROOF_OF_HUMANITY.ADDRESS[chainId]
+      ),
+    [web3.eth.Contract, chainId]
   );
-  const { send: startAccruing, loading: startAccruingLoading } = useContract(
-    "UBI",
-    "startAccruing"
+
+  const ubiInstance = useMemo(
+    () => new web3.eth.Contract(UBI.ABI, UBI.ADDRESS[chainId]),
+    [web3.eth.Contract, chainId]
   );
-
-  const pohInstance = useMemo(() => {
-    if (!ProofOfHumanityAbi || !pohAddress) return;
-    return new web3.eth.Contract(ProofOfHumanityAbi, pohAddress);
-  }, [web3.eth.Contract]);
-
-  const ubiInstance = useMemo(() => {
-    if (!UBIAbi || !UBIAddress) return;
-    return new web3.eth.Contract(UBIAbi, UBIAddress);
-  }, [web3.eth.Contract]);
 
   const challengeTimeRemaining =
     (Number(lastStatusChange) + Number(challengePeriodDuration)) * 1000 -
@@ -322,20 +322,24 @@ export default function UBICard({
       .startAccruing(submissionID)
       .encodeABI();
 
-    batchSend(
-      [
-        pohAddress,
-        UBIAddress,
-        ...new Array(toVouchCalls.length).fill(pohAddress),
+    batchSend({
+      args: [
+        [
+          PROOF_OF_HUMANITY.ADDRESS[chainId],
+          UBI.ADDRESS[chainId],
+          ...new Array(toVouchCalls.length).fill(
+            PROOF_OF_HUMANITY.ADDRESS[chainId]
+          ),
+        ],
+        [
+          Web3.utils.toBN(0),
+          Web3.utils.toBN(0),
+          ...new Array(toVouchCalls.length).fill(Web3.utils.toBN(0)),
+        ],
+        [executeRequestCall, startAccruingCall, ...toVouchCalls],
       ],
-      [
-        web3.utils.toBN(0),
-        web3.utils.toBN(0),
-        ...new Array(toVouchCalls.length).fill(web3.utils.toBN(0)),
-      ],
-      [executeRequestCall, startAccruingCall, ...toVouchCalls],
-      { gasLimit: 310000 }
-    ).then(reCallAccruedSince);
+      options: { gasLimit: 310000 },
+    }).then(reCallAccruedSince);
   }, [
     batchSend,
     pohInstance,
@@ -344,7 +348,7 @@ export default function UBICard({
     submissionID,
     submissions,
     ubiInstance.methods,
-    web3.utils,
+    chainId,
   ]);
 
   // This counts how many vouches the profile received, but
@@ -464,19 +468,18 @@ export default function UBICard({
       return;
 
     if (ownValidVouches?.signatures?.length >= requiredNumberOfVouches)
-      changeStateToPendingSend(
-        submissionID,
-        [],
-        ownValidVouches.signatures,
-        ownValidVouches.expirationTimestamps
-      ).then(reCallAccruedSince);
+      changeStateToPendingSend({
+        args: [
+          submissionID,
+          [],
+          ownValidVouches.signatures,
+          ownValidVouches.expirationTimestamps,
+        ],
+      }).then(reCallAccruedSince);
     else if (availableOnchainVouches.length >= requiredNumberOfVouches)
-      changeStateToPendingSend(
-        submissionID,
-        availableOnchainVouches,
-        [],
-        []
-      ).then(reCallAccruedSince);
+      changeStateToPendingSend({
+        args: [submissionID, availableOnchainVouches, [], []],
+      }).then(reCallAccruedSince);
   }, [
     availableOnchainVouches,
     changeStateToPendingSend,
@@ -497,24 +500,23 @@ export default function UBICard({
         }}
       >
         <Flex sx={{ marginBottom: [2, 2, 2, 0] }}>
-          <UBI size={32} />
+          <UBIIcon size={32} />
           <AccruedUBI
             registered={registered}
-            web3={web3}
             accruedPerSecond={accruedPerSecond}
             currentBalanceOf={currentBalanceOf}
             sx={{ marginLeft: 2 }}
           />
         </Flex>
         {lastMintedSecond &&
-          lastMintedSecond.gt(web3.utils.toBN(0)) &&
+          lastMintedSecond.gt(Web3.utils.toBN(0)) &&
           typeof registered === "boolean" &&
           !registered && (
             <Button
               variant="secondary"
               disabled={lastMintedSecondStatus === "pending"}
               onClick={() =>
-                reportRemoval(submissionID).then(reCallAccruedSince)
+                reportRemoval({ args: [submissionID] }).then(reCallAccruedSince)
               }
               loading={reportRemovalLoading}
             >
@@ -557,12 +559,14 @@ export default function UBICard({
             </Button>
           ) : (
             status.key === submissionStatusEnum.Registered.key &&
-            lastMintedSecond?.eq(web3.utils.toBN(0)) && (
+            lastMintedSecond?.eq(Web3.utils.toBN(0)) && (
               <Button
                 variant="secondary"
                 disabled={lastMintedSecondStatus === "pending"}
                 onClick={() =>
-                  startAccruing(submissionID).then(reCallAccruedSince)
+                  startAccruing({ args: [submissionID] }).then(
+                    reCallAccruedSince
+                  )
                 }
                 loading={startAccruingLoading}
               >

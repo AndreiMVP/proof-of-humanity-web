@@ -1,15 +1,11 @@
-import {
-  Box,
-  Card,
-  Progress,
-  Text,
-  useContract,
-  useWeb3,
-} from "@kleros/components";
+import { Box, Card, Progress, Text, useContractCall } from "@kleros/components";
 import { useCallback, useMemo, useState } from "react";
 import { graphql, useFragment } from "relay-hooks";
+import Web3 from "web3";
 
 import SubmitProfileForm from "./submit-profile-form";
+
+import { KLEROS_LIQUID } from "config/contracts";
 
 const submitProfileCardFragment = graphql`
   fragment submitProfileCard on Contract {
@@ -65,22 +61,18 @@ function useRegistrationParameters({ contract, submission }) {
     registrationMetaEvidence,
   } = useFragment(submitProfileCardFragment, contract);
 
-  const { web3 } = useWeb3();
-  const [arbitrationCost] = useContract(
-    "klerosLiquid",
+  const [arbitrationCost] = useContractCall(
+    KLEROS_LIQUID,
     "arbitrationCost",
     useMemo(
-      () => ({
-        address: arbitrator,
-        args: [arbitratorExtraData],
-      }),
+      () => ({ address: arbitrator, args: [arbitratorExtraData] }),
       [arbitrator, arbitratorExtraData]
     )
   );
 
   const totalCost = useMemo(
-    () => arbitrationCost?.add(web3.utils.toBN(submissionBaseDeposit)),
-    [arbitrationCost, web3.utils, submissionBaseDeposit]
+    () => arbitrationCost?.add(Web3.utils.toBN(submissionBaseDeposit)),
+    [arbitrationCost, submissionBaseDeposit]
   );
 
   return useMemo(

@@ -1,0 +1,9 @@
+{
+  "network": "xdai",
+  "address": "0xe07b722ac6c5bc38e32397f19c06160b6015df59",
+  "block": 20447843,
+  "klerosLiquidAddress": "0x9C1dA9A04925bDfDedf0f6421bC7EEa8305F9002",
+  "klerosLiquidBlock": 16895601,
+  "UBIAddress": "",
+  "transactionBatcherAddress": "0x64268a7b21e72592d627DCe91F16c68e9dB7a23C"
+}

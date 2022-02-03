@@ -19,31 +19,20 @@ import {
   createWrapConnection,
   useWeb3,
 } from "@kleros/components";
-import { ProofOfHumanityLogo, SecuredByKlerosWhite } from "@kleros/icons";
+import { ProofOfHumanityLogo, SecuredByKleros } from "@kleros/icons";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { animated, useTransition } from "react-spring";
 import { useQuery } from "relay-hooks";
 
 import { indexQuery } from "_pages/index";
 import { appQuery } from "_pages/index/app-query";
 import { IdQuery } from "_pages/profile/[id]";
+import { SUPPORTED_CHAINS_IDS } from "config/chains";
 import { queryEnums, useEvidenceFile } from "data";
-import KlerosLiquid from "subgraph/abis/kleros-liquid";
-import ProofOfHumanity from "subgraph/abis/proof-of-humanity";
-import TransactionBatcher from "subgraph/abis/transaction-batcher";
-import UBI from "subgraph/abis/ubi";
-import {
-  UBIAddress,
-  address,
-  klerosLiquidAddress,
-  transactionBatcherAddress,
-} from "subgraph/config";
 
-const queries = {
-  "/": indexQuery,
-  "/profile/:id": IdQuery,
-};
+const queries = { "/": indexQuery, "/profile/:id": IdQuery };
+
 const wrapConnection = createWrapConnection(queries, queryEnums);
 const theme = {
   colors: {
@@ -57,85 +46,58 @@ const theme = {
   },
 };
 
-const network = process.env.NEXT_PUBLIC_NETWORK || "mainnet";
-
-const contracts = [
-  {
-    name: "proofOfHumanity",
-    abi: ProofOfHumanity,
-    address: { [network]: address },
-  },
-  {
-    name: "klerosLiquid",
-    abi: KlerosLiquid,
-    address: { [network]: klerosLiquidAddress },
-  },
-  { name: "UBI", abi: UBI, address: { [network]: UBIAddress } },
-  {
-    name: "transactionBatcher",
-    abi: TransactionBatcher,
-    address: { [network]: transactionBatcherAddress },
-  },
-];
 function MyProfileLink() {
-  const [accounts] = useWeb3("eth", "getAccounts");
+  const { account } = useWeb3();
   const { props } = useQuery(
     appQuery,
-    {
-      id: accounts?.[0]?.toLowerCase(),
-      contributor: accounts?.[0]?.toLowerCase(),
-    },
-    { skip: !accounts?.[0] }
+    { id: account?.toLowerCase(), contributor: account?.toLowerCase() },
+    { skip: !account }
   );
 
   const showSubmitProfile =
     !props?.submission ||
     (!props?.submission?.registered && props?.submission?.status === "None");
-  return accounts?.[0] ? (
-    <NextLink href="/profile/[id]" as={`/profile/${accounts[0]}`}>
+
+  return account ? (
+    <NextLink href="/profile/[id]" as={`/profile/${account}`}>
       <Link variant="navigation">
         {showSubmitProfile ? "Submit Profile" : "My Profile"}
       </Link>
     </NextLink>
   ) : null;
 }
+
 const settings = {
   proofOfHumanityNotifications: {
     label: "Enable",
     info: "Subscribe to updates about submissions you are involved in.",
   },
 };
-const parseSettings = (rawSettings) => ({
-  ...Object.keys(settings).reduce((acc, setting) => {
-    acc[setting] =
-      rawSettings?.payload?.settings?.Item?.[setting]?.BOOL || false;
-    return acc;
-  }, {}),
-  email: rawSettings?.payload?.settings?.Item?.email?.S || "",
-});
-const normalizeSettings = ({ email, ...rest }) => ({
-  email: { S: email },
-  ...Object.keys(rest).reduce((acc, setting) => {
-    acc[setting] = {
-      BOOL: rest[setting] || false,
-    };
-    return acc;
-  }, {}),
-});
 
-function capitalize(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
+const parseSettings = (rawSettings) =>
+  Object.keys(settings).reduce(
+    (acc, setting) => ({
+      ...acc,
+      [setting]: rawSettings?.payload?.settings?.Item?.[setting]?.BOOL || false,
+    }),
+    { email: rawSettings?.payload?.settings?.Item?.email?.S || "" }
+  );
+
+const normalizeSettings = ({ email, ...rest }) =>
+  Object.keys(rest).reduce(
+    (acc, setting) => ({
+      ...acc,
+      [setting]: { BOOL: rest[setting] || false },
+    }),
+    { email: { S: email } }
+  );
 
 function AccountSettingsPopup() {
-  const [accounts] = useWeb3("eth", "getAccounts");
+  const { account } = useWeb3();
   const { props } = useQuery(
     appQuery,
-    {
-      id: accounts?.[0]?.toLowerCase(),
-      contributor: accounts?.[0]?.toLowerCase(),
-    },
-    { skip: !accounts?.[0] }
+    { id: account?.toLowerCase(), contributor: account?.toLowerCase() },
+    { skip: !account }
   );
   const evidenceURI = props?.submission?.requests[0].evidence[0].URI;
   const getEvidenceFile = useEvidenceFile();
@@ -264,6 +226,7 @@ const header = {
     </Flex>
   ),
 };
+
 const footer = {
   sx: {
     flexWrap: "wrap",
@@ -283,7 +246,7 @@ const footer = {
       newTab
       href="https://kleros.io"
     >
-      <SecuredByKlerosWhite sx={{ width: 200 }} />
+      <SecuredByKleros sx={{ width: 200 }} />
     </Link>
   ),
   left: (
@@ -303,44 +266,21 @@ const AnimatedBox = animated(Box);
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
-  const query = useMemo(
-    () => wrapConnection.parseAsPath(router.asPath).query,
-    [router.asPath]
-  );
-
-  const networkFromQuery = query?.network ?? network;
-  const [networkFromProvider, setNetworkFromProvider] = useState();
-
+  const [chainId, setChainId] = useState(1);
   const [routeChangeConnection, setRouteChangeConnection] = useState();
+
   const connectToRouteChange = useCallback((connection) => {
     const wrappedConnection = wrapConnection(connection);
     wrappedConnection(location.pathname + location.search);
     setRouteChangeConnection(() => wrappedConnection);
   }, []);
+
   useEffect(() => {
     if (routeChangeConnection) {
       router.events.on("routeChangeStart", routeChangeConnection);
       return () => router.events.off("routeChangeStart", routeChangeConnection);
     }
   }, [routeChangeConnection, router.events]);
-
-  const onNetworkChange = useCallback(
-    (ETHNet) => {
-      const { name: _network } = ETHNet;
-      if (networkFromQuery !== _network) {
-        const searchParameters = new URLSearchParams(location.search);
-        if (!_network) searchParameters.delete("network");
-        else searchParameters.set("network", _network);
-
-        router.replace({
-          pathname: location.pathname,
-          query: searchParameters.toString(),
-        });
-      }
-      setNetworkFromProvider(ETHNet);
-    },
-    [router, networkFromQuery]
-  );
 
   const transitions = useTransition(
     [{ key: router.route, Component, pageProps }],
@@ -356,11 +296,7 @@ export default function App({ Component, pageProps }) {
     }
   );
 
-  if (
-    (networkFromProvider &&
-      networkFromProvider.name !== process.env.NEXT_PUBLIC_NETWORK) ||
-    network !== process.env.NEXT_PUBLIC_NETWORK
-  )
+  if (!SUPPORTED_CHAINS_IDS.includes(chainId))
     return (
       <Flex
         sx={{
@@ -370,33 +306,19 @@ export default function App({ Component, pageProps }) {
           width: "100vw",
         }}
       >
-        Unsupported network. Please switch to {capitalize(network)} and refresh.
+        Unsupported network.
       </Flex>
     );
 
-  // const apiKey = process.env.NEXT_PUBLIC_THEGRAPH_APIKEY;
-  // const subgraphID = process.env.NEXT_PUBLIC_SUBGRAPHID;
-
-  // const endpoint =
-  //   process.env.NEXT_PUBLIC_TESTING === "true"
-  //     ? `https://api.thegraph.com/subgraphs/name/kleros/proof-of-humanity-${networkFromQuery}`
-  //     : `https://gateway.thegraph.com/api/${apiKey}/subgraphs/id/${subgraphID}`;
-
-  const endpoint = `https://api.thegraph.com/subgraphs/name/kleros/proof-of-humanity-${networkFromQuery}`;
-
   return (
-    <ThemeProvider theme={theme}>
-      <RelayProvider
-        endpoint={endpoint}
-        queries={queries}
-        connectToRouteChange={connectToRouteChange}
-      >
-        <Web3Provider
-          infuraURL={process.env.NEXT_PUBLIC_INFURA_ENDPOINT}
-          contracts={contracts}
-          onNetworkChange={onNetworkChange}
-        >
-          <ArchonProvider>
+    <RelayProvider
+      queries={queries}
+      chainId={chainId}
+      connectToRouteChange={connectToRouteChange}
+    >
+      <Web3Provider chainId={chainId} setChainId={setChainId}>
+        <ArchonProvider>
+          <ThemeProvider theme={theme}>
             <Layout header={header} footer={footer}>
               {transitions.map(({ key, props, item }) => (
                 <AnimatedBox
@@ -413,9 +335,9 @@ export default function App({ Component, pageProps }) {
                 </AnimatedBox>
               ))}
             </Layout>
-          </ArchonProvider>
-        </Web3Provider>
-      </RelayProvider>
-    </ThemeProvider>
+          </ThemeProvider>
+        </ArchonProvider>
+      </Web3Provider>
+    </RelayProvider>
   );
 }

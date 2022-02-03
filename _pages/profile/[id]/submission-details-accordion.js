@@ -8,6 +8,7 @@ import {
 } from "@kleros/components";
 import { graphql, useFragment } from "relay-hooks";
 
+import { PROOF_OF_HUMANITY } from "config/contracts";
 import { challengeReasonEnum, useEvidenceFile } from "data";
 
 const submissionDetailsAccordionFragments = {
@@ -97,7 +98,7 @@ export default function SubmissionDetailsAccordion({ submission, contract }) {
         panelSx={{ paddingX: 0 }}
         panel={
           <Evidence
-            contract="proofOfHumanity"
+            contract={PROOF_OF_HUMANITY}
             args={[id]}
             evidences={evidences}
             useEvidenceFile={useEvidenceFile}
@@ -116,7 +117,7 @@ export default function SubmissionDetailsAccordion({ submission, contract }) {
               loserStakeMultiplier={loserStakeMultiplier}
               arbitrator={arbitrator}
               arbitratorExtraData={arbitratorExtraData}
-              contract="proofOfHumanity"
+              contract={PROOF_OF_HUMANITY}
               args={[id]}
             />
           }
