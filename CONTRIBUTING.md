@@ -23,16 +23,15 @@
    ```
 
    ```bash
-   NEXT_PUBLIC_NETWORK=kovan # or mainnet
-   NEXT_PUBLIC_INFURA_ENDPOINT='https://{network}.infura.io/v3/{api_key}'
+   NEXT_PUBLIC_INFURA_API_KEY='YOUR API KEY'
    NEXT_PUBLIC_IPFS_GATEWAY='https://ipfs.kleros.io'
    ```
 
 3. Build the subgraph and the relay schemas locally:
 
    ```bash
-   npm run local:build:graph:test
-   npm run local:dev:relay:test
+   npm run build:graph:{network}
+   npm run dev:relay:{network}
    ```
 
 4. Start the development server:
