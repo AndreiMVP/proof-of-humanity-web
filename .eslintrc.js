@@ -146,21 +146,21 @@ module.exports = {
       },
     ],
     "import/extensions": "error", // Don't use unnecessary file extensions.
-    "import/order": [
-      "error",
-      {
-        pathGroups: [
-          {
-            pattern: "@kleros/{components,icons}",
-            group: "external",
-          },
-        ],
-        // "newlines-between": "always",
-        // alphabetize: {
-        //   order: "asc",
-        // },
-      },
-    ],
+    // "import/order": [
+    //   "error",
+    //   {
+    //     pathGroups: [
+    //       {
+    //         pattern: "@kleros/{components,icons}",
+    //         group: "external",
+    //       },
+    //     ],
+    //     "newlines-between": "always",
+    //     alphabetize: {
+    //       order: "asc",
+    //     },
+    //   },
+    // ],
     // "import/newline-after-import": "error",
     "import/no-anonymous-default-export": [
       "error",
