@@ -155,10 +155,10 @@ module.exports = {
             group: "external",
           },
         ],
-        "newlines-between": "always",
-        alphabetize: {
-          order: "asc",
-        },
+        // "newlines-between": "always",
+        // alphabetize: {
+        //   order: "asc",
+        // },
       },
     ],
     // "import/newline-after-import": "error",
