@@ -31,6 +31,7 @@ const createEnvironment = (endpoint) => {
 };
 
 const Context = createContext();
+Context.displayName = "RelayContext";
 
 export default function RelayProvider({
   queries,

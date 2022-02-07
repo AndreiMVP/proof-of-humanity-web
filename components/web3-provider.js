@@ -18,6 +18,7 @@ import Web3Modal from "web3modal";
 import { CHAIN_RPC } from "config/chains";
 
 const Context = createContext();
+Context.displayName = "Web3Context";
 
 const createWeb3Modal = () =>
   new Web3Modal({

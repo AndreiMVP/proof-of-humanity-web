@@ -95,6 +95,8 @@ function FocusOnFirstError({ children }) {
 }
 
 const ValidationSchemaContext = createContext();
+ValidationSchemaContext.displayName = "ValidationSchemaContext";
+
 export default function Form({
   createValidationSchema,
   onSubmit,

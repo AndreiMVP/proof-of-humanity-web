@@ -18,6 +18,8 @@ import { useWeb3 } from "./web3-provider";
 import { CHAIN_KEY } from "config/chains";
 
 const Context = createContext();
+Context.displayName = "ArchonContext";
+
 const sanitize = (input) =>
   input
     .toString()
