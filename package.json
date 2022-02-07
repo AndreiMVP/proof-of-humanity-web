@@ -130,7 +130,7 @@
     }
   },
   "scripts": {
-    "depcheck": "depcheck . --ignores=@commitlint/*,@typescript-eslint/*,@babel/*,babel-*,typescript,typescript-*,@storybook/*,storybook-*,eslint-*,electron,react-is,@kleros/components,@kleros/icons,_pages,data,subgraph,buffer,lib",
+    "depcheck": "depcheck . --ignores=@commitlint/*,@typescript-eslint/*,@babel/*,babel-*,typescript,typescript-*,@storybook/*,storybook-*,eslint-*,electron,react-is,@kleros/components,@kleros/icons,_pages,data,subgraph,buffer,lib,config",
     "lint": "eslint --ext js,mdx .",
     "dev": "next",
     "start": "next start",
