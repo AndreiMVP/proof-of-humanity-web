@@ -25,6 +25,7 @@ import { CHAIN_SETTING, HAS_GASLESS_VOUCH } from "config/chains";
 import { PROOF_OF_HUMANITY } from "config/contracts";
 import { useEvidenceFile } from "data";
 import getVideoEmptyBorderSize from "lib/get-video-empty-border-size";
+import exifRemoved from "scripts/exif-removed";
 
 const VIDEO_OPTIONS = {
   types: {
@@ -250,9 +251,11 @@ const SubmitProfileForm = memo(
           contribution,
         }) => {
           [{ pathname: photo }, { pathname: video }] = await Promise.all([
-            uploadWithProgress(sanitize(photo.name), photo.content, {
-              onProgress: onPhotoUploadProgress,
-            }),
+            uploadWithProgress(
+              sanitize(photo.name),
+              exifRemoved(photo.content),
+              { onProgress: onPhotoUploadProgress }
+            ),
             uploadWithProgress(sanitize(video.name), video.content, {
               onProgress: onVideoUploadProgress,
             }),
