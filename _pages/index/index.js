@@ -49,21 +49,11 @@ export default function Index() {
   const router = useRouter();
   const { props } = useQuery();
 
-  const startsWithNormalized = props?.startsWith || [];
-  const endsWithNormalized = props?.endsWith || [];
+  const containsNormalized = props?.contains || [];
   const byAddressNormalized = props?.byAddress || [];
 
   const submissions = router.query.search
-    ? startsWithNormalized
-        .concat(
-          endsWithNormalized.filter(
-            (endsW) =>
-              startsWithNormalized &&
-              startsWithNormalized.filter((startsW) => startsW.id === endsW.id)
-                .length === 0
-          )
-        )
-        .concat(byAddressNormalized)
+    ? containsNormalized.concat(byAddressNormalized)
     : props?.submissions?.slice(0, pageSize);
 
   const [submissionDuration] = useContractCall(
@@ -128,7 +118,6 @@ export const indexQuery = graphql`
     $skip: Int = 0
     $first: Int = 13
     $where: Submission_filter = { removed: false }
-    $search: String = ""
     $address: ID
   ) {
     contract(id: 0) {
@@ -144,11 +133,7 @@ export const indexQuery = graphql`
       id
       ...submissionCardSubmission
     }
-    startsWith: submissions(where: { name_starts_with: $search }) {
-      id
-      ...submissionCardSubmission
-    }
-    endsWith: submissions(where: { name_ends_with: $search }) {
+    contains: submissions(where: $where) {
       id
       ...submissionCardSubmission
     }

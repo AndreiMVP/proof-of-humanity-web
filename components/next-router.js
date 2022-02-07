@@ -94,7 +94,16 @@ export const createWrapConnection = (queries, queryEnums) => {
       }
     }
 
-    if (query.search) query.address = query.search;
+    if (query.search)
+      query = {
+        ...query,
+        address: query.search,
+        where: {
+          ...query.where,
+          name_contains: query.search,
+        },
+      };
+
     return { path, query };
   };
 
