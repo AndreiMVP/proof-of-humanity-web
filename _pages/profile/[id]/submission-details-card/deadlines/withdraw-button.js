@@ -1,5 +1,4 @@
 import { Button, useContractSend } from "@kleros/components";
-import { useCallback } from "react";
 
 import { PROOF_OF_HUMANITY } from "config/contracts";
 
@@ -9,12 +8,10 @@ export default function WithdrawButton({ sx, ...rest }) {
     "withdrawSubmission"
   );
 
-  const handleClick = useCallback(() => sendWithdraw(), [sendWithdraw]);
-
   return (
     <Button
       {...rest}
-      onClick={handleClick}
+      onClick={sendWithdraw}
       sx={{
         backgroundImage({ colors }) {
           const { danger, text } = colors;
