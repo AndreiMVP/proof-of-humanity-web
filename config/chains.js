@@ -2,6 +2,12 @@ import Web3 from "web3";
 
 import { ChainId, ChainKey, ChainName } from "./enums";
 
+export const HAS_GASLESS_VOUCH = {
+  [ChainId.ETHEREUM]: true,
+  [ChainId.KOVAN]: true,
+  [ChainId.XDAI]: false,
+};
+
 export const CHAIN_KEY = {
   [ChainId.ETHEREUM]: ChainKey.ETHEREUM,
   [ChainId.KOVAN]: ChainKey.KOVAN,

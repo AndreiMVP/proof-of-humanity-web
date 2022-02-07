@@ -21,7 +21,7 @@ import { useRouter } from "next/router";
 import { memo, useCallback, useEffect, useRef } from "react";
 import Web3 from "web3";
 
-import { CHAIN_SETTING } from "config/chains";
+import { CHAIN_SETTING, HAS_GASLESS_VOUCH } from "config/chains";
 import { PROOF_OF_HUMANITY } from "config/contracts";
 import { useEvidenceFile } from "data";
 import getVideoEmptyBorderSize from "lib/get-video-empty-border-size";
@@ -269,7 +269,7 @@ const SubmitProfileForm = memo(
               onProgress: onSubmissionUploadProgress,
             }
           );
-          if (reapply) {
+          if (reapply && HAS_GASLESS_VOUCH[chainId]) {
             const messageParameters = JSON.stringify({
               domain: {
                 name: "Proof Of Humanity",

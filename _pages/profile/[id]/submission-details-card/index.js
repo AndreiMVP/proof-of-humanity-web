@@ -39,6 +39,7 @@ import {
   submissionStatusEnum,
   useEvidenceFile,
 } from "data";
+import { HAS_GASLESS_VOUCH } from "config/chains";
 
 const submissionDetailsCardFragments = {
   contract: graphql`
@@ -146,7 +147,7 @@ export default function SubmissionDetailsCard({
     "desc"
   );
 
-  const { account } = useWeb3();
+  const { account, chainId } = useWeb3();
   const isSelf = account && account.toLowerCase() === id.toLowerCase();
 
   const { lastStatusChange } = request;
@@ -324,7 +325,9 @@ export default function SubmissionDetailsCard({
                   Fund Submission
                 </FundButton>
               )}
-              {!isSelf && <GaslessVouchButton submissionID={id} />}
+              {!isSelf && HAS_GASLESS_VOUCH[chainId] && (
+                <GaslessVouchButton submissionID={id} />
+              )}
               {!isSelf && <VouchButton submissionID={id} />}
             </>
           )}
