@@ -420,6 +420,7 @@ export default function UBICard({
   const { submission } = vouchesReceivedQuery || {};
   const { vouchesReceived } = submission || {};
   const [availableOnchainVouches, setAvailableOnchainVouches] = useState([]);
+
   useEffect(() => {
     if (!vouchesReceived || !pohInstance) return;
     (async () => {

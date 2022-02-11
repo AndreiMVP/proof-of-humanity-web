@@ -20,7 +20,7 @@ your vouch will only be counted when and as long as you are
 registered, and another submission is not using your vouch.
 `;
 
-export default function GasslessVouchButton({ submissionID }) {
+export default function GaslessVouchButton({ submissionID }) {
   const { web3, connect, account, chainId } = useWeb3();
   const [addVouchLabel, setAddVouchLabel] = useState(vouchText);
   const [registered] = useContractCall(
