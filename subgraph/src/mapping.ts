@@ -269,41 +269,40 @@ function processVouchesHelper(
   request.vouchReleaseReady = false;
   request.save();
 
+  let requestUsedReasons = request.usedReasons;
+  let punishVouch =
+    request.ultimateChallenger != null &&
+    (requestUsedReasons[requestUsedReasons.length - 1] == "Duplicate" ||
+      requestUsedReasons[requestUsedReasons.length - 1] == "DoesNotExist");
+
   let vouches = request.vouches;
   for (let i = 0; i < endIndex.toI32(); i++) {
-    let requestUsedReasons = request.usedReasons;
-
     let voucher = Submission.load(vouches[i]);
     managePreviousStatus(voucher, call);
     voucher.usedVouch = null;
 
-    if (request.ultimateChallenger != null) {
+    if (punishVouch) {
       if (
-        requestUsedReasons[requestUsedReasons.length - 1] == "Duplicate" ||
-        requestUsedReasons[requestUsedReasons.length - 1] == "DoesNotExist"
+        voucher.status == "Vouching" ||
+        voucher.status == "PendingRegistration"
       ) {
-        if (
-          voucher.status == "Vouching" ||
-          voucher.status == "PendingRegistration"
-        ) {
-          let voucherRequest = Request.load(
-            crypto
-              .keccak256(
-                concatByteArrays(
-                  ByteArray.fromHexString(voucher.id),
-                  ByteArray.fromUTF8(
-                    voucher.requestsLength.minus(BigInt.fromI32(1)).toString()
-                  )
+        let voucherRequest = Request.load(
+          crypto
+            .keccak256(
+              concatByteArrays(
+                ByteArray.fromHexString(voucher.id),
+                ByteArray.fromUTF8(
+                  voucher.requestsLength.minus(BigInt.fromI32(1)).toString()
                 )
               )
-              .toHexString()
-          );
-          voucherRequest.requesterLost = true;
-          voucherRequest.save();
-        }
-
-        voucher.registered = false;
+            )
+            .toHexString()
+        );
+        voucherRequest.requesterLost = true;
+        voucherRequest.save();
       }
+
+      voucher.registered = false;
     }
 
     voucher.save();
@@ -863,6 +862,9 @@ export function changeStateToPending(call: ChangeStateToPendingCall): void {
       voucher.usedVouch = submission.id;
       voucher.save();
     }
+
+    if (request.vouches.length >= contract.requiredNumberOfVouches.toI32())
+      break;
   }
   request.save();
 
